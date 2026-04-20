@@ -1,0 +1,20 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --bg: 15 15 20;
+    --surface: 22 22 30;
+  }
+
+  body {
+    @apply bg-gray-950 text-gray-100 antialiased;
+  }
+}
+
+@layer utilities {
+  .drag-active {
+    @apply border-brand-500 bg-brand-500/10;
+  }
+}
