@@ -97,11 +97,23 @@ export async function POST(req: NextRequest) {
       (((originalSize - compressedSize) / originalSize) * 100).toFixed(1)
     );
 
-    // ── Persist output ────────────────────────────────────────────────────
-    const storage = await getStorage();
-    const outputKey = `${jobId}-compressed${outputExt}`;
-    await storage.save(outputKey, outputTmp);
-    const downloadUrl = await storage.getDownloadUrl(outputKey);
+    // ── Build download URL ────────────────────────────────────────────────
+    // On serverless platforms (Vercel) each request runs in its own container,
+    // so a file written in this invocation won't exist when /api/download/[id]
+    // runs later.  For local storage we embed the compressed bytes as a base64
+    // data URL so the client can trigger a download without a second round-trip.
+    // For S3 we persist normally and return a presigned URL.
+    let downloadUrl: string;
+    if (process.env.STORAGE_PROVIDER === "s3") {
+      const storage = await getStorage();
+      const outputKey = `${jobId}-compressed${outputExt}`;
+      await storage.save(outputKey, outputTmp);
+      downloadUrl = await storage.getDownloadUrl(outputKey);
+    } else {
+      const compressedBytes = await fs.readFile(outputTmp);
+      const mime = outputExt === ".glb" ? "model/gltf-binary" : "model/gltf+json";
+      downloadUrl = `data:${mime};base64,${compressedBytes.toString("base64")}`;
+    }
 
     const job: CompressionJob = {
       id: jobId,
